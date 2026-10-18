@@ -9,14 +9,12 @@ Cargo.toml  Cargo.lock            # crate `tune`, edition 2024, MSRV 1.98; no wo
 src/lib.rs                       # library root — declares every module
 src/main.rs                      # thin binary: CLI parsing, signals, process lifecycle
 src/<module>.rs                  # top-level modules: cli, firewall, routing, vpn, socks5, …
-src/<module>/mod.rs              # dir modules keep mod.rs: config/, dns/, provider/, wireguard/
-src/control.rs + src/control/     # file+dir style: control.rs declares auth, lifecycle, vpnsettings
-src/portforward/                 # empty, unreferenced — VPN port forwarding is rejected by design
+src/<module>.rs + src/<module>/   # dir modules, file+dir style (never <module>/mod.rs): config/, control/, dns/, provider/, wireguard/
 servers/mullvad.json             # bundled Mullvad relay dataset (include_str! in src/storage.rs)
 ```
 
 - Unit tests are inline `#[cfg(test)] mod tests { use super::*; … }` at the bottom of the file under test — 31 files, 125 tests. There is no `tests/`, `benches/`, or `examples/` directory; `cargo test` collects the lib target's inline tests (the binary declares none).
-- New module → `src/<module>.rs` (or `<module>/mod.rs` when it has submodules) plus its `pub mod` line in `src/lib.rs`.
+- New module → `src/<module>.rs` plus `src/<module>/` for submodules, and its `pub mod` line in `src/lib.rs`.
 
 Docker stack:
 
@@ -45,7 +43,7 @@ TECHNICAL.md                     # internals: architecture, build and validation
 HANDOFF.md                       # session handoff — read before acting, keep current per task
 ```
 
-Root also carries one-off session notes (`instructions.txt`, `sources.txt`, `sources2.md`, `session-ses_*.md`, `2026-09-29-*.txt`); they are scratch, not structure.
+Root also carries `.scratch/` (gitignored) for one-off session notes, session exports, and scratch validation scripts — never committed, never shipped; delete or promote its contents before finishing a task.
 
 ## Testing
 

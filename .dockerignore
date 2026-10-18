@@ -4,14 +4,14 @@
 .serena
 .opencode
 .headroom
+.scratch
+.ruff_cache
 target
 scratchpad
 HANDOFF.md
+AGENTS.md
 README.md
 TECHNICAL.md
-sources.txt
-sources2.md
-instructions.txt
 *.log
 .env
 .env.*

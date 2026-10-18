@@ -26,7 +26,7 @@ An in-progress Rust rewrite of gluetun exclusively for **Mullvad VPN**, running 
 - `/v1/publicip/ip` reports the current IP; `/v1/version` reports the version. Legacy `/version`, `/unbound/actions/restart`, and `/updater/restart` are supported.
 - `METRICS_TYPE=prometheus` exposes `/metrics` on port 9090, including gluetun-compatible `gluetun_tun_rx_bytes_total` and `gluetun_tun_tx_bytes_total` interface counters.
 
-Mullvad does not offer VPN port forwarding; enabling `VPN_PORT_FORWARDING` or its legacy alias is a configuration error. Defaults and validation are in `src/config/mod.rs`.
+Mullvad does not offer VPN port forwarding; enabling `VPN_PORT_FORWARDING` or its legacy alias is a configuration error. Defaults and validation are in `src/config.rs`.
 
 A healthy fallback tunnel stays connected; there is no disruptive periodic switch back. The preferred country is checked again on the next reconnect. If all eligible endpoints fail, retries restart from the first country with the existing VPN retry backoff. Setting `HEALTH_RESTART_VPN=off` disables health-triggered failover. This is priority-based failover, not ping/throughput benchmarking. Country values currently require names such as `Poland`, not ISO codes such as `PL`.
 

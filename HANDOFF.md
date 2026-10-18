@@ -2,7 +2,20 @@
 
 ## Objective / constraints
 
-### Latest completion — HTTP auth review fix and shared-network gateway (2026-10-18)
+### Latest completion — repo layout restructure (2026-10-18)
+
+Restructure per layout rules, authorized via the two-stop approval. `git init` was required first — this directory had **no** `.git`; a baseline commit (`3fc663e`) captured the untouched tree so the moves are real tracked renames, not copy-delete.
+
+- `git mv` renames, `mod.rs` → file+dir style per the Rust layout rule: `src/config/mod.rs`→`src/config.rs`, `src/dns/mod.rs`→`src/dns.rs`, `src/provider/mod.rs`→`src/provider.rs`, `src/wireguard/mod.rs`→`src/wireguard.rs`. `pub mod` resolution is path-identical, so **no import/use/`Cargo.toml`/CI/Dockerfile/compose changes were needed** — verified by grep over all tracked files.
+- `src/portforward/` (empty, unreferenced, rejected by design) removed.
+- Six root scratch files (`instructions.txt`, `sources.txt`, `sources2.md`, both `session-ses_*.md`, the 93 KB `2026-09-29-*.txt`) moved to `.scratch/` (plain `mv`, gitignored, never committed); `.ruff_cache/` deleted.
+- `.gitignore`: `+.scratch/`, `+.ruff_cache/`. `.dockerignore`: scratch/doc lines replaced by `.scratch`, `.ruff_cache`, `AGENTS.md` — build context no longer ships session exports.
+- `AGENTS.md` `## Layout` rewritten to the new module style; `README.md:29` stale `src/config/mod.rs` ref fixed to `src/config.rs`.
+- Known quirk kept (out of scope): git excludes `tune/logs/.gitkeep` because `*/logs/` ignores the parent dir and git never re-includes inside an excluded dir; nothing mounts `tune/logs`, compose unaffected.
+
+Validation (homevm, native linux/amd64, rsynced): `cargo fmt --check` clean; clippy `--all-targets -- -D warnings` clean; full `cargo test --locked --target x86_64-unknown-linux-gnu -- --include-ignored` **125 passed / 0 failed / 0 ignored** (same as pre-move baseline; includes kernel nftables, PMTUD, live Mullvad checks); single-module proof `--lib config::` collects 21; `docker compose config` valid base-only and base+override (throwaway `.env`, removed). No image rebuild needed — Dockerfile unchanged. No remote exists; nothing pushed.
+
+### Prior — HTTP auth review fix and shared-network gateway (2026-10-18)
 
 Authorized via "Continue with HANDOFF.md". All seven outstanding items from the STOP checkpoint below are resolved; that section is retained as the prior handoff record.
 
