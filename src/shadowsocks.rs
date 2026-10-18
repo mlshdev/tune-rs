@@ -340,7 +340,7 @@ async fn relay_udp(
             received = remote.recv(&mut buffer) => {
                 let length = received?;
                 let mut control = reply.control.clone();
-                control.packet_id = reply.packet_id.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+                control.packet_id = reply.packet_id.try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
                     .map_err(|_| io::Error::other("Shadowsocks UDP packet counter exhausted"))?;
                 let peer = *reply.peer.borrow();
                 tokio::time::timeout(SETUP_TIMEOUT, listener.send(peer, &source, &control, &buffer[..length]))
