@@ -38,6 +38,7 @@ CI and meta:
 .github/workflows/ci.yml         # fmt + build + test + clippy on native ubuntu-26.04 / ubuntu-26.04-arm
 .github/workflows/image.yml      # validated multi-arch image build → ghcr.io manifest list
 .github/dependabot.yml           # cargo, docker, github-actions — twice weekly
+.github/workflows/dependabot-automerge.yml # auto-merge Dependabot PRs once required checks pass
 README.md                        # user-facing: commands, quickstart, proxy access, namespace sharing
 TECHNICAL.md                     # internals: architecture, build and validation workflow
 HANDOFF.md                       # session handoff — read before acting, keep current per task

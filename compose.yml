@@ -1,6 +1,6 @@
 services:
   tune:
-    image: ghcr.io/mlsh/tune-rs:0.1.0
+    image: ghcr.io/mlshdev/tune-rs:0.1.0
     build:
       context: .
       dockerfile: Dockerfile

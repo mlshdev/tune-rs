@@ -21,7 +21,7 @@ FROM docker.io/library/debian:trixie-slim
 
 LABEL org.opencontainers.image.title="tune" \
       org.opencontainers.image.description="Kernel WireGuard VPN gateway with nftables" \
-      org.opencontainers.image.source="https://github.com/mlsh/tune-rs"
+      org.opencontainers.image.source="https://github.com/mlshdev/tune-rs"
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates libnftnl11 libmnl0 util-linux passwd \
