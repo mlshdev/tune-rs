@@ -2,7 +2,34 @@
 
 ## Objective / constraints
 
-### Latest completion — repo layout restructure (2026-10-18)
+### Latest completion — production push to GitHub with CI/CD (2026-10-18)
+
+Repo published as **mlshdev/tune-rs** (public, `main`, remote `origin` over SSH): https://github.com/mlshdev/tune-rs. Commit `fccfe49` on top of the restructure `ad763ec`.
+
+Changes made for publish readiness:
+- **Owner refs corrected**: `compose.yml` image `ghcr.io/mlsh/tune-rs:0.1.0` → `ghcr.io/mlshdev/tune-rs:0.1.0`; Dockerfile `org.opencontainers.image.source` → `https://github.com/mlshdev/tune-rs` (actual account, verified via `gh auth`; the old `mlsh/` owner does not exist).
+- **Action pins bumped to latest stable**: `actions/upload-artifact` v7.0.1→v7.0.2, `actions/download-artifact` v8.0.1→v8.0.2.
+- **New `.github/workflows/dependabot-automerge.yml`** per the global CI/CD standard: auto-merge Dependabot PRs once required checks pass (`ubuntu-slim`, 15-min timeout, `fetch-metadata@v3.1.0` + `gh pr merge --auto --merge`). `AGENTS.md` layout and `TECHNICAL.md` CI notes updated to match.
+- **Branch protection on `main`**: strict required status checks `validate (ubuntu-26.04, x86_64-unknown-linux-gnu)` and `validate (ubuntu-26.04-arm, aarch64-unknown-linux-gnu)`, force-push and deletion blocked, `enforce_admins: false` (the owner may still push directly; Dependabot PRs must pass both checks before auto-merge).
+
+CI/CD state on GitHub (matches the global standard for `~/dev/github/**`):
+- `ci.yml` — fmt + build + test + clippy on native `ubuntu-26.04`/`ubuntu-26.04-arm` matrix, PR + push + twice-weekly schedule (`0 0 * * 1,4`).
+- `image.yml` — validate then per-arch native builds; PR = build-only validation, push/schedule = per-arch digest push + `imagetools create` manifest merge (`:0.1.0`, `:latest`, `:sha-<full>`); scheduled runs are no-cache rebuilds. No QEMU.
+- `dependabot.yml` — cargo, docker, github-actions, twice weekly UTC.
+- `dependabot-automerge.yml` — auto-merge on green required checks.
+
+Validation for this push (homevm, native linux/amd64, rsynced): `cargo fmt --check` clean; clippy `--all-targets -- -D warnings` clean; `cargo test --locked -- --include-ignored` **125 passed / 0 failed / 0 ignored**; actionlint clean; `docker compose config` valid base-only and base+override; `docker build --platform linux/amd64` image rebuilt (label fix); dive CI **PASS 99.8313%** (244538 wasted bytes, same as baseline); all **five smoke scenarios passed** (early SIGTERM, steady unauthenticated, authenticated HTTP 407 + SOCKS5, companion graceful-stop seal retention, companion abrupt-kill fail-closed). No leftover `dev-tune-rs*` containers/networks.
+
+**CI/CD bring-up history (actual, on GitHub):**
+1. First push (`fccfe49`): both validate jobs **failed** — CI's `rustup update stable` is newer than the local 1.98 dev image; `std::sync::atomic::Atomic::<u64>::fetch_update` is deprecated (renamed `try_update`) there, failing clippy under `-D warnings` (`src/shadowsocks.rs:343`). Only the lint step failed; build/test passed.
+2. Fixed by the rename to `try_update` (commit `a8cc6f6`) after verifying on the 1.98 dev container that `try_update` exists there too — MSRV 1.98 and the `rust:1.98-slim-trixie` Dockerfile builder are unchanged; local fmt/clippy re-green on 1.98 (122 collectible tests passed, 3 kernel/network tests ignored in that run; the full `--include-ignored` suite is green on this tree).
+3. Second push (`a8cc6f6`): `Rust build and test` **success**; `Native multi-architecture image` **success** — manifest list published to `ghcr.io/mlshdev/tune-rs:latest` (also `:0.1.0`, `:sha-<full>`) with `linux/amd64` + `linux/arm64` digests, verified via `docker buildx imagetools inspect`.
+4. Auto-merge workflow failed on Dependabot PR #1 (cargo group: hyper, libc, rustls, serde_json, tokio minor bumps) because the repo-level "Allow auto-merge" setting was off (`enablePullRequestAutoMerge` denied). Enabled via API (`allow_auto_merge=true`, `delete_branch_on_merge=true`), then enabled auto-merge on PR #1 — confirmed `enabledAt 2026-10-18T18:19:04Z`, merge method MERGE.
+5. PR #1's own checks failed (its branch predates the clippy fix); rebased onto `main` with `gh pr update-branch`. Required validate checks then passed and auto-merge landed it as merge commit `a726cbcd` (hyper, libc, rustls, serde_json, tokio minor bumps). Local `main` synced with rebase onto `origin/main`; the merge push retriggered the image workflow (Cargo.toml/lock are in its path filter) for a fresh validated multi-arch publish.
+
+Remaining gaps (unchanged, honest): authenticated Mullvad end-to-end egress, in-tunnel IPv6, and PQ negotiation remain untested (no Mullvad credentials); native arm64 execution now covered by CI's native `ubuntu-26.04-arm` runner but not exercised locally (homevm is amd64-only); established flows across a live VPN reconnect untested (same credential reason). `0.1.0` tag/`latest`/`sha-` manifests publish from CI, not from homevm — correct per the standard (homevm is dev/test only).
+
+## Latest completion — repo layout restructure (2026-10-18)
 
 Restructure per layout rules, authorized via the two-stop approval. `git init` was required first — this directory had **no** `.git`; a baseline commit (`3fc663e`) captured the untouched tree so the moves are real tracked renames, not copy-delete.
 
