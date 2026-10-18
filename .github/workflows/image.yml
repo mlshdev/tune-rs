@@ -1,0 +1,145 @@
+name: Native multi-architecture image
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/**"
+      - "servers/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".github/workflows/image.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/**"
+      - "servers/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".github/workflows/image.yml"
+  schedule:
+    - cron: "0 0 * * 1,4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-26.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-26.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install native libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libnftnl-dev libmnl-dev
+      - name: Install Rust
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+      - run: cargo fmt --check
+      - run: cargo build --locked --target "${{ matrix.target }}"
+      - run: cargo test --locked --target "${{ matrix.target }}"
+      - run: cargo clippy --locked --target "${{ matrix.target }}" --all-targets -- -D warnings
+
+  build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-26.04
+            platform: linux/amd64
+            arch: amd64
+          - runner: ubuntu-26.04-arm
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.6.0
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7.4.0
+        if: github.event_name == 'pull_request'
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          pull: true
+          push: false
+      - uses: docker/build-push-action@v7.4.0
+        if: github.event_name != 'pull_request'
+        id: publish
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          pull: true
+          no-cache: ${{ github.event_name == 'schedule' }}
+          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
+      - name: Record digest
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v7.0.1
+        if: github.event_name != 'pull_request'
+        with:
+          name: digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: digests-*
+          path: /tmp/digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish validated manifest
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          declare -a sources=()
+          for file in /tmp/digests/*; do
+            sources+=("${IMAGE}@sha256:${file##*/}")
+          done
+          if [ "${#sources[@]}" -ne 2 ]; then
+            exit 1
+          fi
+          docker buildx imagetools create \
+            -t "${IMAGE}:0.1.0" \
+            -t "${IMAGE}:latest" \
+            -t "${IMAGE}:sha-${REVISION}" \
+            "${sources[@]}"

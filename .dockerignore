@@ -1,0 +1,17 @@
+.git
+.github
+.claude
+.serena
+.opencode
+.headroom
+target
+scratchpad
+HANDOFF.md
+README.md
+TECHNICAL.md
+sources.txt
+sources2.md
+instructions.txt
+*.log
+.env
+.env.*

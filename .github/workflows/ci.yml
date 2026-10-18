@@ -1,0 +1,44 @@
+name: Rust build and test
+
+on:
+  pull_request:
+  push:
+  schedule:
+    - cron: "0 0 * * 1,4"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-26.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-26.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install native libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libnftnl-dev libmnl-dev
+      - name: Install Rust toolchain
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup component add rustfmt clippy
+      - name: Check dependency updates
+        if: github.event_name == 'schedule'
+        run: cargo update --dry-run
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Build
+        run: cargo build --locked --target "${{ matrix.target }}"
+      - name: Test
+        run: cargo test --locked --target "${{ matrix.target }}"
+      - name: Lint
+        run: cargo clippy --locked --target "${{ matrix.target }}" --all-targets -- -D warnings

@@ -1,0 +1,44 @@
+# Agent tooling — Claude Code, OpenCode, Serena, MCP
+.claude/
+.scratch/
+.ruff_cache/
+.claude.json
+CLAUDE.local.md
+.opencode/
+AGENTS.local.md
+.serena/
+.mcp.local.json
+.aider*
+.headroom/
+
+# Docker stack runtime
+*/logs/
+!*/logs/.gitkeep
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+.AppleDouble
+.AppleDB
+.AppleDesktop
+.LSOverride
+._*
+Icon?
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.apdisk
+Network Trash Folder
+Temporary Items
+
+# Rust build output and local experiments
+target/
+scratchpad/

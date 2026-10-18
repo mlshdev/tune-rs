@@ -1,0 +1,56 @@
+services:
+  tune:
+    image: ghcr.io/mlsh/tune-rs:0.1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint:
+      - /usr/bin/setpriv
+      - --reuid=1000
+      - --regid=1000
+      - --clear-groups
+      - --inh-caps=+net_admin
+      - --ambient-caps=+net_admin
+      - /usr/local/bin/tune
+    command: ["run"]
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    cap_add:
+      - NET_ADMIN  # Observed: nftables and rtnetlink updates fail without it.
+      - SETUID  # Observed: setpriv cannot switch from root to UID 1000 without it.
+      - SETGID  # Observed: setpriv cannot switch to GID 1000 without it.
+    security_opt: ["no-new-privileges:true"]
+    sysctls:
+      net.ipv4.ip_forward: "1"
+      net.ipv6.conf.all.forwarding: "1"
+      net.ipv6.conf.all.accept_ra: "2"
+      net.ipv6.conf.default.accept_ra: "2"
+      net.ipv4.ip_unprivileged_port_start: "0"
+      net.ipv4.ping_group_range: "1000 1000"
+    env_file:
+      - .env
+    environment:
+      WIREGUARD_PRIVATE_KEY: "${WIREGUARD_PRIVATE_KEY:?set WIREGUARD_PRIVATE_KEY in .env}"
+      WIREGUARD_ADDRESSES: "${WIREGUARD_ADDRESSES:?set WIREGUARD_ADDRESSES in .env}"
+      HTTPPROXY: "${HTTPPROXY:-on}"
+      HTTPPROXY_LISTENING_ADDRESS: "0.0.0.0:8888"
+      SOCKS5: "${SOCKS5:-on}"
+      SOCKS5_LISTENING_ADDRESS: "0.0.0.0:1080"
+      PUID: "1000"
+      PGID: "1000"
+    volumes:
+      - "./tune/config/servers:/gluetun/servers:rw"
+      - "./tune/config/resolv.conf:/etc/resolv.conf:rw"
+      - "./tune/data:/tmp/gluetun:rw"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/tune", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s

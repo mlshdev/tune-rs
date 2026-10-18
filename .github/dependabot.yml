@@ -1,0 +1,41 @@
+version: 2
+updates:
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "cron"
+      cronjob: "0 0 * * 1,4"
+      timezone: "UTC"
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      docker-images:
+        patterns: ["*"]
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "cron"
+      cronjob: "0 0 * * 1,4"
+      timezone: "UTC"
+    labels: ["dependencies", "rust"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      rust-deps:
+        patterns: ["*"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "cron"
+      cronjob: "0 0 * * 1,4"
+      timezone: "UTC"
+    labels: ["dependencies", "github-actions"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      actions:
+        patterns: ["*"]

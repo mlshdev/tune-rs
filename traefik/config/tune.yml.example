@@ -1,0 +1,25 @@
+tcp:
+  routers:
+    tune-http-proxy:
+      entryPoints: ["proxy-http"]
+      rule: "HostSNI(`*`)"
+      middlewares: ["tune-proxy-clients"]
+      service: "tune-http-proxy"
+    tune-socks5-proxy:
+      entryPoints: ["proxy-socks5"]
+      rule: "HostSNI(`*`)"
+      middlewares: ["tune-proxy-clients"]
+      service: "tune-socks5-proxy"
+  middlewares:
+    tune-proxy-clients:
+      ipAllowList:
+        sourceRange: ["192.168.1.0/24"]
+  services:
+    tune-http-proxy:
+      loadBalancer:
+        servers:
+          - address: "tune:8888"
+    tune-socks5-proxy:
+      loadBalancer:
+        servers:
+          - address: "tune:1080"

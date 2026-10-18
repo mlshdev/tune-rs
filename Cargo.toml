@@ -1,0 +1,71 @@
+[package]
+name = "tune"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+description = "Mullvad-only kernel-WireGuard VPN client container (Rust rewrite of gluetun)"
+publish = false
+
+[[bin]]
+name = "tune"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query"] }
+base64 = "0.23"
+classic-mceliece-rust = { version = "3.1", default-features = false, features = ["alloc", "zeroize", "mceliece460896f"] }
+clap = { version = "4.6", features = ["derive", "env"] }
+futures = "0.3"
+getrandom = "0.4"
+hickory-proto = "0.26"
+hickory-resolver = { version = "0.26", default-features = false, features = ["tokio", "tls-aws-lc-rs", "https-aws-lc-rs", "webpki-roots"] }
+http-body-util = "0.1"
+hyper = { version = "1.11", features = ["client", "server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+ipnetwork = { version = "0.21", features = ["serde"] }
+libc = "0.2"
+ml-kem = { version = "0.3", features = ["getrandom"] }
+mnl = "0.3"
+netlink-packet-route = "0.33"
+nftnl = "0.9"
+nl-wireguard = "0.3"
+prost = "0.14"
+rand = "0.10"
+rand_core_06 = { package = "rand_core", version = "0.6", features = ["getrandom"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "http2", "query"] }
+rtnetlink = "0.23"
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12", "logging"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shadowsocks-service = { version = "1.25", default-features = false, features = ["server", "aead-cipher", "aead-cipher-2022", "security-replay-attack-detect"] }
+socket2 = { version = "0.6", features = ["all"] }
+thiserror = "2"
+tokio = { version = "1.53", features = ["full"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["aws_lc_rs", "tls12", "logging"] }
+tonic = { version = "0.14", default-features = false, features = ["codegen", "channel"] }
+tonic-prost = "0.14"
+toml = { version = "1.1.8", default-features = false, features = ["parse", "serde", "std"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+webpki-roots = "1"
+x25519-dalek = { version = "3.0", features = ["static_secrets"] }
+
+# McEliece keygen takes tens of seconds unoptimised; keep debug builds and tests usable.
+[profile.dev.package.classic-mceliece-rust]
+opt-level = 3
+
+[profile.dev.package.ml-kem]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+unwrap_used = "warn"
