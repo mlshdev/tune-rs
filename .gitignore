@@ -19,6 +19,7 @@ AGENTS.local.md
 .env
 .env.*
 !.env.example
+tune/config/tune.env
 
 # macOS
 .DS_Store

@@ -15,3 +15,4 @@ TECHNICAL.md
 *.log
 .env
 .env.*
+tune/config/tune.env

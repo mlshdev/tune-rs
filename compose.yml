@@ -6,20 +6,20 @@ services:
       dockerfile: Dockerfile
     entrypoint:
       - /usr/bin/setpriv
-      - --reuid=1000
-      - --regid=1000
+      - "--reuid=${PUID:-1000}"
+      - "--regid=${PGID:-1000}"
       - --clear-groups
       - --inh-caps=+net_admin
       - --ambient-caps=+net_admin
       - /usr/local/bin/tune
     command: ["run"]
-    user: "0:0"
+    user: "0:0"  # setpriv drops to PUID/PGID before executing Tune, preserving NET_ADMIN.
     read_only: true
     cap_drop: [ALL]
     cap_add:
       - NET_ADMIN  # Observed: nftables and rtnetlink updates fail without it.
-      - SETUID  # Observed: setpriv cannot switch from root to UID 1000 without it.
-      - SETGID  # Observed: setpriv cannot switch to GID 1000 without it.
+      - SETUID  # Observed: setpriv cannot switch from root to the configured UID without it.
+      - SETGID  # Observed: setpriv cannot switch to the configured GID without it.
     security_opt: ["no-new-privileges:true"]
     sysctls:
       net.ipv4.ip_forward: "1"
@@ -27,18 +27,18 @@ services:
       net.ipv6.conf.all.accept_ra: "2"
       net.ipv6.conf.default.accept_ra: "2"
       net.ipv4.ip_unprivileged_port_start: "0"
-      net.ipv4.ping_group_range: "1000 1000"
+      net.ipv4.ping_group_range: "${PGID:-1000} ${PGID:-1000}"
+    # Dedicated per-service env file: all application configuration comes from
+    # here, never from the project-level .env shared by other stacks, so
+    # variables cannot overlap in a multi-stack Compose environment.
     env_file:
-      - .env
+      - "./tune/config/tune.env"
     environment:
-      WIREGUARD_PRIVATE_KEY: "${WIREGUARD_PRIVATE_KEY:?set WIREGUARD_PRIVATE_KEY in .env}"
-      WIREGUARD_ADDRESSES: "${WIREGUARD_ADDRESSES:?set WIREGUARD_ADDRESSES in .env}"
-      HTTPPROXY: "${HTTPPROXY:-on}"
+      # Fixed container listeners must match compose.override.yml publications.
       HTTPPROXY_LISTENING_ADDRESS: "0.0.0.0:8888"
-      SOCKS5: "${SOCKS5:-on}"
       SOCKS5_LISTENING_ADDRESS: "0.0.0.0:1080"
-      PUID: "1000"
-      PGID: "1000"
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
     volumes:
       - "./tune/config/servers:/gluetun/servers:rw"
       - "./tune/config/resolv.conf:/etc/resolv.conf:rw"

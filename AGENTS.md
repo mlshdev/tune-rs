@@ -24,10 +24,11 @@ Dockerfile                       # multi-stage: rust:1.98-slim-trixie builder �
 compose.yml                      # base stack: one `tune` service, no published host ports (Traefik mode)
 compose.override.yml             # auto-loaded by docker compose — publishes 8888/1080 on PROXY_BIND_ADDRESS
 tune/config/                     # bind-mount sources: resolv.conf, servers/ (persisted relay lists)
+tune/config/tune.env.example     # committed placeholders for tune's dedicated app env file; real tune/config/tune.env is gitignored, never committed
 tune/data/                       # bind-mount source: /tmp/gluetun state (public-IP status)
 tune/logs/                       # placeholder only — compose does not mount it
 traefik/config/tune.yml.example  # file-provider TCP router example for an existing Traefik deployment
-.env.example                     # committed placeholder env vars; real .env is gitignored, never committed
+.env.example                     # committed placeholders for stack-level .env (deployment/interpolation vars); real .env is gitignored, never committed
 ```
 
 - Bind mounts resolve on the engine (`homevm`), not on the Mac — rsync the tree to `~/dev/tune-rs` there before `docker compose up`.

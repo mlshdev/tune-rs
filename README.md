@@ -1,5 +1,7 @@
 # tune
 
+**Live validation status (2026-10-19):** Mullvad IPv4/IPv6 egress, post-quantum negotiation, authenticated HTTP/SOCKS5 TCP proxying, and SOCKS5 UDP IPv4/IPv6 relay have passed on native Linux amd64. UDP controls remain open beyond the handshake deadline, and forwarding stops when the control connection closes. This is targeted validation, not a claim of full parity or new native-arm64 verification.
+
 An in-progress Rust rewrite of gluetun exclusively for **Mullvad VPN**, running in Docker on Linux amd64 and arm64. It uses kernel WireGuard, nftables via netlink, and Linux policy routing. DNS forwarding/filtering, HTTP, SOCKS5 and Shadowsocks proxies, Mullvad relay updates, a control API, and Prometheus metrics are implemented. Full parity and authenticated end-to-end VPN validation are not yet complete.
 
 ## Current commands
@@ -17,7 +19,7 @@ An in-progress Rust rewrite of gluetun exclusively for **Mullvad VPN**, running 
 - `WIREGUARD_QUANTUM_RESISTANT=on` (or gluetun's `MULLVAD_POST_QUANTUM_ENABLE=on`) enables Mullvad's ephemeral-peer key exchange.
 - `DNS_UPSTREAM_RESOLVER_TYPE=dot|doh|plain` selects upstream DNS. Encrypted DNS defaults to Mullvad; `DNS_UPSTREAM_RESOLVERS` accepts `mullvad`, `mullvad adblock`, `mullvad base`, `mullvad extended`, `mullvad family`, or `mullvad all`. UDP/TCP clients receive `SERVFAIL` until the VPN is running.
 - `UPDATER_PERIOD=24h` is the default: refresh active WireGuard relays when the VPN first runs, then periodically. `0` disables updates. Downloads run through the tunnel; failed requests retry after one minute. Invalid responses, empty lists, and lists below `UPDATER_MIN_RATIO` (default `0.8` of the current non-kept count) retain the last good list. Persistent lists marked `preferred` are left in place, and entries marked `keep` survive updates. New relays apply on the next tunnel connection.
-- `HTTPPROXY=on` enables the HTTP/CONNECT proxy on port 8888; `SOCKS5=on` enables SOCKS5 TCP CONNECT on port 1080. Both refuse new connections until the tunnel is running; authentication is optional and configured with the corresponding `_USER`/`_PASSWORD` pairs (see the proxy authentication sections below).
+- `HTTPPROXY=on` enables the HTTP/CONNECT proxy on port 8888; `SOCKS5=on` enables SOCKS5 TCP CONNECT and UDP ASSOCIATE on port 1080 (TCP and UDP). Both refuse new connections until the tunnel is running; authentication is optional and configured with the corresponding `_USER`/`_PASSWORD` pairs (see the proxy authentication sections below). `SOCKS5_ALLOWED_CIDRS` restricts UDP ASSOCIATE datagrams to listed client CIDRs; `SOCKS5_UDP_ADVERTISED_ADDRESS` overrides the endpoint advertised in UDP ASSOCIATE replies when publishing behind a NAT.
 - HTTP absolute-URI forwarding supports HTTP and certificate-validated HTTPS. CONNECT remains available for arbitrary TCP tunnels. `HTTPPROXY_STEALTH=on` suppresses adding `X-Forwarded-For`.
 - `SHADOWSOCKS=on` enables encrypted TCP/UDP on port 8388. Set `SHADOWSOCKS_PASSWORD` (or its `_SECRETFILE`) and optionally `SHADOWSOCKS_CIPHER`; the default is `chacha20-ietf-poly1305`. Authenticated AEAD and AEAD-2022 ciphers are supported; AEAD-2022 requires a correctly sized base64 key. Replayed and unauthenticated datagrams are rejected. `SHADOWSOCKS_LOG=on` enables relay destination logging. All proxy connections and UDP associations close on tunnel changes or server shutdown.
 - The control API listens at `HTTP_CONTROL_SERVER_ADDRESS` (default port 8000). `HTTP_CONTROL_SERVER_API_KEY` accepts Bearer or `X-API-Key` authentication; leave it unset only on a trusted, isolated network. See role-based authentication below.
@@ -46,11 +48,13 @@ With a role file configured, unassigned routes are denied. `HTTP_CONTROL_SERVER_
 
 ## Container quickstart
 
-1. Copy `.env.example` to `.env`; fill in your Mullvad WireGuard private key and matching addresses. For direct access, set `PROXY_BIND_ADDRESS` to your server's LAN IP. `.env` is ignored by Git.
+1. Copy `.env.example` to `.env` (deployment variables) and `tune/config/tune.env.example` to `tune/config/tune.env` (application variables); fill in your Mullvad WireGuard private key and matching addresses in the latter. For direct access, set `PROXY_BIND_ADDRESS` to your server's LAN IP. Both real files are ignored by Git.
 2. On a Linux 6.12+ host with kernel WireGuard and Docker, run `docker compose up --build -d`.
 3. Follow startup with `docker compose logs -f tune`. `docker compose down` stops the tunnel: policy routes are restored and the firewall is **sealed** — the deny-by-default kill switch stays committed until the container's network namespace is destroyed, so containers sharing Tune's network namespace cannot egress in the clear after Tune stops.
 
-The stack bind-mounts `tune/config/resolv.conf` as the container's system resolver and persists Mullvad server data and public-IP status under `tune/config/servers` and `tune/data`. Ensure mounted state directories are writable by UID/GID 1000. The image launches a short capability-preserving bootstrap before executing `tune` as UID/GID 1000. The VPN process retains only `NET_ADMIN`; the bootstrap also needs `SETUID` and `SETGID` to change identity. The Compose file contains the required forwarding, router-advertisement, and ping-socket sysctls. The container does not need `/dev/net/tun` or `NET_RAW`.
+Configuration is split so variables cannot overlap in a multi-stack Compose environment. The project-level `.env` carries only the deployment values the Compose files interpolate — `PUID`/`PGID`, `PROXY_BIND_ADDRESS`, `HTTPPROXY_PUBLISHED_PORT`, `SOCKS5_PUBLISHED_PORT` — while **all** application configuration is read from the dedicated per-service `tune/config/tune.env` via `env_file:`. The container never receives the project-level `.env`, so other stacks sharing the project directory cannot leak variables into Tune, and Tune's generic names (`SOCKS5`, `HTTPPROXY`, `FIREWALL`, …) cannot collide with theirs. Compose fails fast when `tune/config/tune.env` is missing.
+
+The stack bind-mounts `tune/config/resolv.conf` as the container's system resolver and persists Mullvad server data and public-IP status under `tune/config/servers` and `tune/data`. Set `PUID` and `PGID` in `.env` to change the default `1000:1000` runtime identity; use nonzero IDs and make the mounted state directories writable by them. Compose starts as root (`user: "0:0"`) only to run `setpriv`, which switches to `PUID`/`PGID` before executing Tune. The VPN process retains only `NET_ADMIN`; the bootstrap also needs `SETUID` and `SETGID` to change identity and does not change host directory ownership. Compose sets the ping-socket group range to `PGID` alongside the required forwarding and router-advertisement sysctls. The container does not need `/dev/net/tun` or `NET_RAW`.
 
 ## Browser proxy access
 
@@ -69,7 +73,9 @@ Set `PROXY_BIND_ADDRESS` in `.env` to the server's LAN address (`192.168.1.101` 
 
 ### Optional SOCKS5 authentication
 
-Leave `SOCKS5_USER` and `SOCKS5_PASSWORD` unset or blank to allow unauthenticated SOCKS5 on your trusted LAN. To require authentication, set both in `.env`:
+Both proxies default to `on` in Compose. Set `SOCKS5=off` in `tune/config/tune.env` to disable the SOCKS5 listener independently of HTTP; set `SOCKS5=on` to enable it again. Apply changes with `docker compose up -d`. The override still declares port 1080, but Tune does not listen there while SOCKS5 is off. `HTTPPROXY=off` similarly disables HTTP.
+
+Leave `SOCKS5_USER` and `SOCKS5_PASSWORD` unset or blank to allow unauthenticated SOCKS5 on your trusted LAN. To require authentication, set both in `tune/config/tune.env`:
 
 ```dotenv
 SOCKS5_USER=browser
@@ -78,9 +84,11 @@ SOCKS5_PASSWORD=replace-with-a-strong-password
 
 Providing only one is a configuration error. When both are set, the proxy requires username/password authentication and rejects incorrect credentials or clients offering only no-authentication. Each field must fit in 255 UTF-8 bytes. Your browser/client must support SOCKS5 username/password authentication; otherwise use the HTTP proxy or restrict unauthenticated SOCKS5 access using LAN controls. This authentication does not encrypt the browser-to-proxy connection.
 
+SOCKS5 UDP ASSOCIATE relays IPv4 and IPv6 destinations while its TCP control connection and the VPN remain active. Disconnecting the control connection removes its learned UDP endpoint and closes its destination sockets. The 15-second timeout applies only to authentication/request setup, not the established association. Fragmented datagrams are dropped. `compose.override.yml` publishes `1080/udp` alongside TCP. Behind NAT, set `SOCKS5_UDP_ADVERTISED_ADDRESS` to the externally reachable relay endpoint; `SOCKS5_ALLOWED_CIDRS` restricts UDP client IPs. The datagram source IP must match the TCP peer, and any explicitly requested source port is enforced.
+
 ### Optional HTTP proxy authentication
 
-Leave `HTTPPROXY_USER` and `HTTPPROXY_PASSWORD` unset or blank for an unauthenticated HTTP proxy on your trusted LAN. To require Basic authentication, set both in `.env`:
+Leave `HTTPPROXY_USER` and `HTTPPROXY_PASSWORD` unset or blank for an unauthenticated HTTP proxy on your trusted LAN. To require Basic authentication, set both in `tune/config/tune.env`:
 
 ```dotenv
 HTTPPROXY_USER=browser
@@ -107,7 +115,7 @@ Keep Tune in its isolated bridge network. **Do not use `network_mode: host`**: i
 
 Traffic follows **browser → container proxy (directly or via Traefik) → Mullvad WireGuard → internet**. Enable proxy-side DNS for SOCKS5; HTTP proxy hostnames are resolved inside the container automatically. Forwarding is rejected until the VPN is running, and tunnel loss closes proxy connections. Do not disable `FIREWALL`. Restrict access to trusted clients using your LAN firewall, the Traefik IP allowlist, or proxy `_USER`/`_PASSWORD` pairs; never expose an unrestricted open proxy publicly.
 
-Only traffic sent through the proxy is covered, not the Mac's other applications. SOCKS5 supports TCP CONNECT, not UDP; browser WebRTC/direct UDP and local DNS bypasses require browser-side restrictions if all browser traffic must remain tunneled. To tunnel an entire container instead of a browser, share Tune's network namespace as described below.
+Only traffic sent through the proxy is covered, not the Mac's other applications. Browser WebRTC/direct UDP and local DNS can bypass proxy settings; restrict them browser-side if all browser traffic must remain tunneled. Experimental UDP ASSOCIATE support does not make browsers automatically proxy UDP. To tunnel an entire container instead of a browser, share Tune's network namespace as described below.
 
 ## Sharing Tune's network namespace
 
@@ -139,7 +147,7 @@ docker run --rm -v "/path/on/engine/to/tune-rs:/src" -w /src dev-tune-rs-toolcha
 docker run --rm -v "/path/on/engine/to/tune-rs:/src" -w /src dev-tune-rs-toolchain:local cargo clippy --locked --target x86_64-unknown-linux-gnu --all-targets -- -D warnings
 ```
 
-Run only in an isolated network namespace while developing; `tune` manages nftables and policy routes in that namespace. There has not yet been a verified end-to-end connection to a commercial VPN server.
+Run only in an isolated network namespace while developing; `tune` manages nftables and policy routes in that namespace. Standard and post-quantum Mullvad IPv4/IPv6 egress, TCP proxies, and SOCKS5 UDP have been verified with registered credentials on native Linux amd64; this does not establish full parity. PQ intentionally uses the round-3-compatible McEliece release described in [TECHNICAL.md](TECHNICAL.md).
 
 Use `aarch64-unknown-linux-gnu` on native Linux arm64 instead. Fetch dependencies only with `cargo fetch --locked --target x86_64-unknown-linux-gnu --target aarch64-unknown-linux-gnu`; no other deployment targets are supported.
 
