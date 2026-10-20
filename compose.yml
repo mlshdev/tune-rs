@@ -1,6 +1,8 @@
 services:
   tune:
-    image: ghcr.io/mlshdev/tune-rs:0.1.0
+    # Keep the default tag in sync with the Cargo.toml version; CI tags the
+    # published image from it. Override per deployment via TUNE_IMAGE_TAG.
+    image: "ghcr.io/mlshdev/tune-rs:${TUNE_IMAGE_TAG:-0.1.0}"
     build:
       context: .
       dockerfile: Dockerfile

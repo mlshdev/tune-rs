@@ -22,7 +22,7 @@ Docker stack:
 Dockerfile                       # multi-stage: rust:1.98-slim-trixie builder → debian:trixie-slim runtime
 .dockerignore
 compose.yml                      # base stack: one `tune` service, no published host ports (Traefik mode)
-compose.override.yml             # auto-loaded by docker compose — publishes 8888/1080 on PROXY_BIND_ADDRESS
+compose.override.yml             # auto-loaded by docker compose — publishes 8888/1080 (tcp+udp) on all host interfaces
 tune/config/                     # bind-mount sources: resolv.conf, servers/ (persisted relay lists)
 tune/config/tune.env.example     # committed placeholders for tune's dedicated app env file; real tune/config/tune.env is gitignored, never committed
 tune/data/                       # bind-mount source: /tmp/gluetun state (public-IP status)

@@ -48,28 +48,28 @@ With a role file configured, unassigned routes are denied. `HTTP_CONTROL_SERVER_
 
 ## Container quickstart
 
-1. Copy `.env.example` to `.env` (deployment variables) and `tune/config/tune.env.example` to `tune/config/tune.env` (application variables); fill in your Mullvad WireGuard private key and matching addresses in the latter. For direct access, set `PROXY_BIND_ADDRESS` to your server's LAN IP. Both real files are ignored by Git.
+1. Copy `.env.example` to `.env` (deployment variables) and `tune/config/tune.env.example` to `tune/config/tune.env` (application variables); fill in your Mullvad WireGuard private key and matching addresses in the latter. Both real files are ignored by Git.
 2. On a Linux 6.12+ host with kernel WireGuard and Docker, run `docker compose up --build -d`.
 3. Follow startup with `docker compose logs -f tune`. `docker compose down` stops the tunnel: policy routes are restored and the firewall is **sealed** — the deny-by-default kill switch stays committed until the container's network namespace is destroyed, so containers sharing Tune's network namespace cannot egress in the clear after Tune stops.
 
-Configuration is split so variables cannot overlap in a multi-stack Compose environment. The project-level `.env` carries only the deployment values the Compose files interpolate — `PUID`/`PGID`, `PROXY_BIND_ADDRESS`, `HTTPPROXY_PUBLISHED_PORT`, `SOCKS5_PUBLISHED_PORT` — while **all** application configuration is read from the dedicated per-service `tune/config/tune.env` via `env_file:`. The container never receives the project-level `.env`, so other stacks sharing the project directory cannot leak variables into Tune, and Tune's generic names (`SOCKS5`, `HTTPPROXY`, `FIREWALL`, …) cannot collide with theirs. Compose fails fast when `tune/config/tune.env` is missing.
+Configuration is split so variables cannot overlap in a multi-stack Compose environment. The project-level `.env` carries only the deployment values the Compose files interpolate — `PUID`/`PGID`, `HTTPPROXY_PUBLISHED_PORT`, `SOCKS5_PUBLISHED_PORT` — while **all** application configuration is read from the dedicated per-service `tune/config/tune.env` via `env_file:`. The container never receives the project-level `.env`, so other stacks sharing the project directory cannot leak variables into Tune, and Tune's generic names (`SOCKS5`, `HTTPPROXY`, `FIREWALL`, …) cannot collide with theirs. Compose fails fast when `tune/config/tune.env` is missing.
 
 The stack bind-mounts `tune/config/resolv.conf` as the container's system resolver and persists Mullvad server data and public-IP status under `tune/config/servers` and `tune/data`. Set `PUID` and `PGID` in `.env` to change the default `1000:1000` runtime identity; use nonzero IDs and make the mounted state directories writable by them. Compose starts as root (`user: "0:0"`) only to run `setpriv`, which switches to `PUID`/`PGID` before executing Tune. The VPN process retains only `NET_ADMIN`; the bootstrap also needs `SETUID` and `SETGID` to change identity and does not change host directory ownership. Compose sets the ping-socket group range to `PGID` alongside the required forwarding and router-advertisement sysctls. The container does not need `/dev/net/tun` or `NET_RAW`.
 
 ## Browser proxy access
 
-No SSH forwarding is required. Both proxies listen inside the VPN container; expose them directly on the server's LAN address or through Traefik TCP routers.
+No SSH forwarding is required. Both proxies listen inside the VPN container; expose them directly on any current host address or through Traefik TCP routers.
 
 ### Direct LAN access
 
-Set `PROXY_BIND_ADDRESS` in `.env` to the server's LAN address (`192.168.1.101` for homevm). The `192.0.2.10` in `.env.example` is a documentation placeholder, not a working server address. Run `docker compose up --build -d`; Compose automatically loads `compose.override.yml` and publishes:
+Published ports bind **all** host interfaces — there is no `PROXY_BIND_ADDRESS`; a dynamic or DHCP-assigned host address just works, and clients use the host's current address. Run `docker compose up --build -d`; Compose automatically loads `compose.override.yml` and publishes:
 
 | Proxy | Browser server | Default port |
 | --- | --- | --- |
-| HTTP proxy, including HTTPS via CONNECT | Server's LAN IP | `8888` |
-| SOCKS5 | Server's LAN IP | `1080` |
+| HTTP proxy, including HTTPS via CONNECT | Any host address | `8888` |
+| SOCKS5 | Any host address | `1080` |
 
-`HTTPPROXY_PUBLISHED_PORT` and `SOCKS5_PUBLISHED_PORT` change host ports without changing the container listeners.
+`HTTPPROXY_PUBLISHED_PORT` and `SOCKS5_PUBLISHED_PORT` change host ports without changing the container listeners. Binding every interface means the proxies are reachable on whatever interface the host has — restrict them with proxy authentication (`_USER`/`_PASSWORD` pairs) or host/LAN firewall rules; never leave an unrestricted proxy exposed on an untrusted network.
 
 ### Optional SOCKS5 authentication
 

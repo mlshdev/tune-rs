@@ -1,6 +1,6 @@
 services:
   tune:
     ports:
-      - "${PROXY_BIND_ADDRESS:?set PROXY_BIND_ADDRESS to the server LAN address}:${HTTPPROXY_PUBLISHED_PORT:-8888}:8888/tcp"
-      - "${PROXY_BIND_ADDRESS:?set PROXY_BIND_ADDRESS to the server LAN address}:${SOCKS5_PUBLISHED_PORT:-1080}:1080/tcp"
-      - "${PROXY_BIND_ADDRESS:?set PROXY_BIND_ADDRESS to the server LAN address}:${SOCKS5_PUBLISHED_PORT:-1080}:1080/udp"
+      - "${HTTPPROXY_PUBLISHED_PORT:-8888}:8888/tcp"
+      - "${SOCKS5_PUBLISHED_PORT:-1080}:1080/tcp"
+      - "${SOCKS5_PUBLISHED_PORT:-1080}:1080/udp"

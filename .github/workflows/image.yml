@@ -114,6 +114,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
     steps:
+      - uses: actions/checkout@v7.0.1
       - uses: actions/download-artifact@v8.0.2
         with:
           pattern: digests-*
@@ -138,8 +139,10 @@ jobs:
           if [ "${#sources[@]}" -ne 2 ]; then
             exit 1
           fi
+          VERSION="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          test -n "${VERSION}"
           docker buildx imagetools create \
-            -t "${IMAGE}:0.1.0" \
+            -t "${IMAGE}:${VERSION}" \
             -t "${IMAGE}:latest" \
             -t "${IMAGE}:sha-${REVISION}" \
             "${sources[@]}"

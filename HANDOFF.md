@@ -2,6 +2,20 @@
 
 ## Objective / constraints
 
+### Latest completion — single-source image version tag (2026-10-20)
+
+The `0.1.0` tag was hardcoded in three places (`Cargo.toml`, `image.yml` merge job, `compose.yml` image), so a version bump would silently tag/pin the wrong image. Fixed: `image.yml` merge job now checks out the repo and derives `VERSION` from `Cargo.toml` (`grep -m1 '^version' | cut -d'"' -f2`, guarded by `test -n`), tagging `${IMAGE}:${VERSION}` + `latest` + `sha-${REVISION}`; `compose.yml` parameterizes `image: "ghcr.io/mlshdev/tune-rs:${TUNE_IMAGE_TAG:-0.1.0}"` with a sync comment; `.env.example` documents the optional `TUNE_IMAGE_TAG` override (commented out); TECHNICAL documents the version-derived tagging.
+
+- Validation: `actionlint` clean on `image.yml` (with the two runner-label ignores); the exact CI parse command locally extracts `0.1.0`; `docker compose config` renders `0.1.0` by default, honors `TUNE_IMAGE_TAG=0.2.0-test`, and base-only `-f compose.yml` stays portless. Throwaway `tune.env` fixture removed after rendering.
+- Committed and pushed same day with the PROXY_BIND_ADDRESS removal (previous entry).
+
+### Latest completion — publish on all interfaces, drop PROXY_BIND_ADDRESS (2026-10-20)
+
+User requested `PROXY_BIND_ADDRESS` be removed entirely — the host address is dynamic. `compose.override.yml` now publishes `"${HTTPPROXY_PUBLISHED_PORT:-8888}:8888/tcp"`, `"${SOCKS5_PUBLISHED_PORT:-1080}:1080/tcp"`, and `…:1080/udp"` with **no host IP**, so Docker binds every host interface and DHCP/dynamic host addresses just work. `.env.example` drops the variable; `tune/config/tune.env.example`'s `SOCKS5_UDP_ADVERTISED_ADDRESS` comment no longer references it (the ASSOCIATE reply advertises the control connection's local IP by default — correct for direct access; set it explicitly only behind NAT/forwarding). README/TECHNICAL/AGENTS updated; the all-interfaces caveat (restrict with proxy auth or LAN firewall) documented. Test literals in `src/` (`192.0.2.10` documentation IP) are untouched.
+
+- Validation (throwaway `tune.env` fixture, removed after): default render publishes `8888/tcp`, `1080/tcp`, `1080/udp` with `host_ip: null`; custom `HTTPPROXY_PUBLISHED_PORT=18888`/`SOCKS5_PUBLISHED_PORT=11080` interpolate; base-only `-f compose.yml` publishes nothing (Traefik mode unaffected). `PROXY_BIND_ADDRESS` remains only in HANDOFF history and one intentional README sentence.
+- Uncommitted as of this entry; no Rust changes, no image rebuild needed (Dockerfile untouched).
+
 ### Latest completion — dedicated per-service env file for multi-stack isolation (2026-10-20)
 
 User reported the container will run in a multi-stack Compose environment and needs a dedicated env file so variables cannot overlap. `compose.yml` previously loaded the project-level `.env` via `env_file:` and interpolated generic application names (`WIREGUARD_*`, `HTTPPROXY*`, `SOCKS5*`) from it — any other stack sharing the project directory/env would leak into the tune container, and tune's generic names (`SOCKS5`, `HTTPPROXY`, `FIREWALL`, `PUID`) could collide with theirs.
