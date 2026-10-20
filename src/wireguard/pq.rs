@@ -267,6 +267,12 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn mullvad_round_three_ciphertext_includes_confirmation() {
+        assert_eq!(mceliece::CRYPTO_CIPHERTEXTBYTES, 188);
+        assert_eq!(mceliece::CRYPTO_PUBLICKEYBYTES, 524_160);
+    }
+
     #[tokio::test]
     async fn preshared_key_is_xor_of_both_shared_secrets() {
         let keys = KemKeys::generate_off_runtime().await.expect("keygen");
@@ -311,6 +317,14 @@ mod tests {
             Err(PqError::CiphertextLength {
                 algorithm: MCELIECE_NAME,
                 ..
+            })
+        ));
+        assert!(matches!(
+            keys.preshared_key(&[vec![0; 156], vec![0; 1568]]),
+            Err(PqError::CiphertextLength {
+                algorithm: MCELIECE_NAME,
+                expected: 188,
+                got: 156
             })
         ));
         assert!(matches!(

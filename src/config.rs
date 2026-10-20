@@ -247,10 +247,19 @@ pub struct Socks5Settings {
     pub listen_address: SocketAddr,
     pub user: Secret,
     pub password: Secret,
+    pub allowed_cidrs: Vec<IpNetwork>,
+    pub udp_advertised_address: Option<SocketAddr>,
 }
 
 impl Socks5Settings {
     pub(crate) fn validate_credentials(&self) -> Result<(), ConfigError> {
+        if self.udp_advertised_address.is_some_and(|address| {
+            address.port() == 0 || address.ip().is_unspecified() || address.ip().is_multicast()
+        }) {
+            return Err(ConfigError::constraint(
+                "SOCKS5_UDP_ADVERTISED_ADDRESS must be a reachable unicast IP and nonzero port",
+            ));
+        }
         if self.user.is_empty() != self.password.is_empty() {
             return Err(ConfigError::constraint(
                 "SOCKS5_USER and SOCKS5_PASSWORD must be set together",
@@ -424,8 +433,10 @@ impl Settings {
                 log: env.bool(&["SHADOWSOCKS_LOG"])?.unwrap_or(false),
             },
             socks5: Socks5Settings {
-                enabled: env.bool(&["SOCKS5"])?.unwrap_or(false),
+                enabled: env.bool(&["SOCKS5", "SOCKS5_ENABLED"])?.unwrap_or(false),
                 listen_address: listen_address(env, &["SOCKS5_LISTENING_ADDRESS"], 1080)?,
+                allowed_cidrs: env.csv_parse(&["SOCKS5_ALLOWED_CIDRS"])?,
+                udp_advertised_address: env.parse(&["SOCKS5_UDP_ADVERTISED_ADDRESS"])?,
                 user: secret(
                     env,
                     &["SOCKS5_USER"],
@@ -945,6 +956,32 @@ mod tests {
             assert!(error.to_string().contains("must be set together"));
             assert!(!error.to_string().contains("secret-value"));
         }
+    }
+
+    #[test]
+    fn socks5_accepts_reference_enable_switch_and_rejects_invalid_cidrs() {
+        let settings = Settings::from_env(&base_env(&[("SOCKS5_ENABLED", "on")]))
+            .expect("reference enable switch");
+        assert!(settings.socks5.enabled);
+        let settings =
+            Settings::from_env(&base_env(&[("SOCKS5", "off"), ("SOCKS5_ENABLED", "on")]))
+                .expect("explicit Tune switch wins");
+        assert!(!settings.socks5.enabled);
+        assert!(Settings::from_env(&base_env(&[("SOCKS5_ALLOWED_CIDRS", "invalid")])).is_err());
+        let settings = Settings::from_env(&base_env(&[(
+            "SOCKS5_UDP_ADVERTISED_ADDRESS",
+            "192.0.2.10:1080",
+        )]))
+        .expect("valid advertised address");
+        assert_eq!(
+            settings.socks5.udp_advertised_address,
+            Some("192.0.2.10:1080".parse().expect("advertised"))
+        );
+        assert!(
+            Settings::from_env(&base_env(&[("SOCKS5_UDP_ADVERTISED_ADDRESS", "0.0.0.0:0")]))
+                .is_err(),
+            "unspecified advertised address is rejected"
+        );
     }
 
     #[test]

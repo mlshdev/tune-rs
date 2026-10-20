@@ -14,7 +14,8 @@ path = "src/main.rs"
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query"] }
 base64 = "0.23"
-classic-mceliece-rust = { version = "3.1", default-features = false, features = ["alloc", "zeroize", "mceliece460896f"] }
+# Mullvad requests round 3; 3.x implements the incompatible round-4 KEM.
+classic-mceliece-rust = { version = "2.0.2", default-features = false, features = ["alloc", "zeroize", "mceliece460896f"] }
 clap = { version = "4.6", features = ["derive", "env"] }
 futures = "0.3"
 getrandom = "0.4"
@@ -50,6 +51,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 webpki-roots = "1"
 x25519-dalek = { version = "3.0", features = ["static_secrets"] }
+
+[dev-dependencies]
+tokio = { version = "1.53", features = ["test-util"] }
 
 # McEliece keygen takes tens of seconds unoptimised; keep debug builds and tests usable.
 [profile.dev.package.classic-mceliece-rust]

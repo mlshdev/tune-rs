@@ -404,9 +404,9 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "classic-mceliece-rust"
-version = "3.1.0"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62a9b6d27e553269a76625911aa8cf6afaa8659f1b0c85b410cb5f51a87183d9"
+checksum = "45ce62f72a15a9071f83c5084bdf0af4e8cbf31431e79eb4a5509a2f7fe7fe5d"
 dependencies = [
  "rand 0.8.8",
  "sha3 0.10.9",

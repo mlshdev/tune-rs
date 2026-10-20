@@ -34,7 +34,7 @@ COPY --from=builder /out/tune /usr/local/bin/tune
 
 ENV PUID=1000 PGID=1000
 VOLUME ["/gluetun/servers", "/tmp/gluetun"]
-EXPOSE 53/udp 53/tcp 9999/tcp 8888/tcp 1080/tcp
+EXPOSE 53/udp 53/tcp 9999/tcp 8888/tcp 1080/tcp 1080/udp
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD ["/usr/local/bin/tune", "healthcheck"]
 
