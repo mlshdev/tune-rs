@@ -1,4 +1,4 @@
-FROM docker.io/library/rust:1.98-slim-trixie AS builder
+FROM docker.io/library/rust:1.99-slim-trixie AS builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libnftnl-dev libmnl-dev \
