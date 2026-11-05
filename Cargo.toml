@@ -15,7 +15,7 @@ path = "src/main.rs"
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query"] }
 base64 = "0.23"
 # Mullvad requests round 3; 3.x implements the incompatible round-4 KEM.
-classic-mceliece-rust = { version = "2.0.2", default-features = false, features = ["alloc", "zeroize", "mceliece460896f"] }
+classic-mceliece-rust = { version = "3.1.0", default-features = false, features = ["alloc", "zeroize", "mceliece460896f"] }
 clap = { version = "4.6", features = ["derive", "env"] }
 futures = "0.3"
 getrandom = "0.4"
