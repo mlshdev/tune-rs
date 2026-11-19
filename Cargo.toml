@@ -15,7 +15,7 @@ path = "src/main.rs"
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query"] }
 base64 = "0.23"
 # Mullvad requests round 3; 3.x implements the incompatible round-4 KEM.
-classic-mceliece-rust = { version = "2.0.2", default-features = false, features = ["alloc", "zeroize", "mceliece460896f"] }
+classic-mceliece-rust = { version = "3.1.0", default-features = false, features = ["alloc", "zeroize", "mceliece460896f"] }
 clap = { version = "4.6", features = ["derive", "env"] }
 futures = "0.3"
 getrandom = "0.4"
@@ -28,14 +28,14 @@ ipnetwork = { version = "0.21", features = ["serde"] }
 libc = "0.2"
 ml-kem = { version = "0.3", features = ["getrandom"] }
 mnl = "0.3"
-netlink-packet-route = "0.33"
+netlink-packet-route = "0.34"
 nftnl = "0.9"
 nl-wireguard = "0.3"
 prost = "0.14"
 rand = "0.10"
 rand_core_06 = { package = "rand_core", version = "0.6", features = ["getrandom"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "http2", "query"] }
-rtnetlink = "0.23"
+rtnetlink = "0.24"
 rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12", "logging"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
